@@ -6,40 +6,58 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Upload, User, Building2 } from 'lucide-react';
 
 const Register = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [activeTab, setActiveTab] = useState('user');
+  
+  // User registration state
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
+  
+  // Admin registration state
+  const [adminForm, setAdminForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    canteenName: '',
+    canteenLocation: '',
+    canteenPhoto: null as File | null
+  });
+  
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !email || !password || !confirmPassword) {
+    if (!userForm.name || !userForm.email || !userForm.password || !userForm.confirmPassword) {
       toast.error('Please fill in all fields');
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (userForm.password !== userForm.confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
 
-    if (password.length < 6) {
+    if (userForm.password.length < 6) {
       toast.error('Password must be at least 6 characters');
       return;
     }
 
     setLoading(true);
     try {
-      await register(email, password, name);
+      await register(userForm.email, userForm.password, userForm.name, 'user');
       toast.success('Account created successfully!');
       navigate('/canteen-selection');
     } catch (error) {
@@ -49,8 +67,49 @@ const Register = () => {
     }
   };
 
+  const handleAdminSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!adminForm.name || !adminForm.email || !adminForm.password || !adminForm.confirmPassword || !adminForm.canteenName) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (adminForm.password !== adminForm.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    if (adminForm.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await register(adminForm.email, adminForm.password, adminForm.name, 'admin', {
+        canteenName: adminForm.canteenName,
+        canteenLocation: adminForm.canteenLocation,
+        canteenPhoto: adminForm.canteenPhoto
+      });
+      toast.success('Admin account created successfully!');
+      navigate('/admin');
+    } catch (error) {
+      toast.error('Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAdminForm(prev => ({ ...prev, canteenPhoto: file }));
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 px-4 py-8">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">
@@ -59,78 +118,202 @@ const Register = () => {
           <p className="text-gray-600">Create your account</p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your full name"
-                required
-              />
-            </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="user" className="text-xs sm:text-sm">
+                <User className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">User</span>
+              </TabsTrigger>
+              <TabsTrigger value="admin" className="text-xs sm:text-sm">
+                <Building2 className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Canteen Owner</span>
+              </TabsTrigger>
+            </TabsList>
 
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                required
-              />
-            </div>
+            <TabsContent value="user">
+              <form onSubmit={handleUserSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="user-name">Full Name</Label>
+                  <Input
+                    id="user-name"
+                    type="text"
+                    value={userForm.name}
+                    onChange={(e) => setUserForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Enter your full name"
+                    required
+                  />
+                </div>
 
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Create a password"
-                  required
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                  onClick={() => setShowPassword(!showPassword)}
+                <div>
+                  <Label htmlFor="user-email">Email</Label>
+                  <Input
+                    id="user-email"
+                    type="email"
+                    value={userForm.email}
+                    onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="Enter your email"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="user-password">Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="user-password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={userForm.password}
+                      onChange={(e) => setUserForm(prev => ({ ...prev, password: e.target.value }))}
+                      placeholder="Create a password"
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="user-confirm-password">Confirm Password</Label>
+                  <Input
+                    id="user-confirm-password"
+                    type="password"
+                    value={userForm.confirmPassword}
+                    onChange={(e) => setUserForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    placeholder="Confirm your password"
+                    required
+                  />
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full bg-orange-600 hover:bg-orange-700"
+                  disabled={loading}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {loading ? 'Creating Account...' : 'Create User Account'}
                 </Button>
-              </div>
-            </div>
+              </form>
+            </TabsContent>
 
-            <div>
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm your password"
-                required
-              />
-            </div>
+            <TabsContent value="admin">
+              <form onSubmit={handleAdminSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="admin-name">Admin Full Name</Label>
+                  <Input
+                    id="admin-name"
+                    type="text"
+                    value={adminForm.name}
+                    onChange={(e) => setAdminForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Enter your full name"
+                    required
+                  />
+                </div>
 
-            <Button 
-              type="submit" 
-              className="w-full bg-orange-600 hover:bg-orange-700"
-              disabled={loading}
-            >
-              {loading ? 'Creating Account...' : 'Create Account'}
-            </Button>
-          </form>
+                <div>
+                  <Label htmlFor="admin-email">Email</Label>
+                  <Input
+                    id="admin-email"
+                    type="email"
+                    value={adminForm.email}
+                    onChange={(e) => setAdminForm(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="Enter your email"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="admin-password">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="admin-password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={adminForm.password}
+                        onChange={(e) => setAdminForm(prev => ({ ...prev, password: e.target.value }))}
+                        placeholder="Create password"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="admin-confirm-password">Confirm Password</Label>
+                    <Input
+                      id="admin-confirm-password"
+                      type="password"
+                      value={adminForm.confirmPassword}
+                      onChange={(e) => setAdminForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      placeholder="Confirm password"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="canteen-name">Canteen Name *</Label>
+                  <Input
+                    id="canteen-name"
+                    type="text"
+                    value={adminForm.canteenName}
+                    onChange={(e) => setAdminForm(prev => ({ ...prev, canteenName: e.target.value }))}
+                    placeholder="Enter canteen name"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="canteen-location">Canteen Location (Optional)</Label>
+                  <Input
+                    id="canteen-location"
+                    type="text"
+                    value={adminForm.canteenLocation}
+                    onChange={(e) => setAdminForm(prev => ({ ...prev, canteenLocation: e.target.value }))}
+                    placeholder="Enter canteen location"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="canteen-photo">Canteen Photo (Optional)</Label>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      id="canteen-photo"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('canteen-photo')?.click()}
+                      className="w-full"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {adminForm.canteenPhoto ? adminForm.canteenPhoto.name : 'Upload Photo'}
+                    </Button>
+                  </div>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full bg-orange-600 hover:bg-orange-700"
+                  disabled={loading}
+                >
+                  {loading ? 'Creating Account...' : 'Create Admin Account'}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">

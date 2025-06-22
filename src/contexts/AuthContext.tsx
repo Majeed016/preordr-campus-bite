@@ -8,11 +8,17 @@ interface User {
   role: 'user' | 'admin';
 }
 
+interface CanteenData {
+  canteenName: string;
+  canteenLocation: string;
+  canteenPhoto: File | null;
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (email: string, password: string, name: string, role?: 'user' | 'admin', canteenData?: CanteenData) => Promise<void>;
   logout: () => void;
   isAdmin: boolean;
 }
@@ -53,7 +59,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mock user data
+      // Mock user data with role-based routing
       const mockUser: User = {
         id: '1',
         email,
@@ -71,21 +77,33 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const register = async (email: string, password: string, name: string) => {
+  const register = async (email: string, password: string, name: string, role: 'user' | 'admin' = 'user', canteenData?: CanteenData) => {
     setLoading(true);
     try {
       // Demo registration - in real app, this would use Supabase
-      console.log('Register attempt:', { email, password, name });
+      console.log('Register attempt:', { email, password, name, role, canteenData });
       
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // If admin registration, simulate canteen creation
+      if (role === 'admin' && canteenData) {
+        console.log('Creating canteen:', canteenData);
+        // In real app: upload photo to Supabase Storage, create canteen record
+        localStorage.setItem('demo_canteen', JSON.stringify({
+          id: Date.now().toString(),
+          name: canteenData.canteenName,
+          location: canteenData.canteenLocation,
+          admin_user_id: Date.now().toString()
+        }));
+      }
       
       // Mock user data
       const mockUser: User = {
         id: Date.now().toString(),
         email,
         name,
-        role: 'user'
+        role
       };
       
       setUser(mockUser);
@@ -102,6 +120,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(null);
     localStorage.removeItem('cafepreorder_user');
     localStorage.removeItem('selected_canteen');
+    localStorage.removeItem('demo_canteen');
   };
 
   const value = {

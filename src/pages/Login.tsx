@@ -14,11 +14,9 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
-  const from = location.state?.from?.pathname || '/canteen-selection';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +30,14 @@ const Login = () => {
     try {
       await login(email, password);
       toast.success('Welcome back!');
-      navigate(from, { replace: true });
+      
+      // Role-based navigation
+      const userData = JSON.parse(localStorage.getItem('cafepreorder_user') || '{}');
+      if (userData.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/canteen-selection');
+      }
     } catch (error) {
       toast.error('Login failed. Please try again.');
     } finally {
@@ -41,7 +46,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 px-4 py-8">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">
@@ -60,6 +65,7 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
                 required
+                className="w-full"
               />
             </div>
 
@@ -73,6 +79,7 @@ const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   required
+                  className="w-full pr-10"
                 />
                 <Button
                   type="button"
@@ -110,9 +117,11 @@ const Login = () => {
 
           <div className="mt-4 p-4 bg-gray-50 rounded-lg">
             <p className="text-xs text-gray-600 mb-2">Demo accounts:</p>
-            <p className="text-xs">User: user@example.com</p>
-            <p className="text-xs">Admin: admin@example.com</p>
-            <p className="text-xs">Password: any password</p>
+            <div className="space-y-1">
+              <p className="text-xs">User: user@example.com</p>
+              <p className="text-xs">Admin: admin@example.com</p>
+              <p className="text-xs">Password: any password</p>
+            </div>
           </div>
         </CardContent>
       </Card>
