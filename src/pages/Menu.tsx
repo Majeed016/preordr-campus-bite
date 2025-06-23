@@ -99,11 +99,16 @@ const Menu = () => {
       return;
     }
 
+    // Pass complete MenuItem object with all required properties
     addItem({
       id: item.id,
       name: item.name,
       price: item.price,
-      image_url: item.image_url
+      description: item.description,
+      image_url: item.image_url,
+      category: item.category,
+      available_quantity: item.available_quantity,
+      canteen_id: selectedCanteen?.id || 'default-canteen'
     });
     
     toast.success(`${item.name} added to cart`);

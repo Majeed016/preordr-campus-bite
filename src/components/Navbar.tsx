@@ -10,7 +10,7 @@ import { useState } from 'react';
 
 const Navbar = () => {
   const { user, logout, isAdmin } = useAuth();
-  const { itemCount } = useCart();
+  const { totalItems } = useCart();
   const { selectedCanteen } = useCanteen();
   const location = useLocation();
   const navigate = useNavigate();
@@ -75,9 +75,9 @@ const Navbar = () => {
                 <Link to="/cart" className="relative">
                   <Button variant="ghost" size="sm">
                     <ShoppingCart className="h-5 w-5" />
-                    {itemCount > 0 && (
+                    {totalItems > 0 && (
                       <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                        {itemCount}
+                        {totalItems}
                       </Badge>
                     )}
                   </Button>
@@ -137,9 +137,9 @@ const Navbar = () => {
               <Link to="/cart" className="relative">
                 <Button variant="ghost" size="sm">
                   <ShoppingCart className="h-5 w-5" />
-                  {itemCount > 0 && (
+                  {totalItems > 0 && (
                     <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                      {itemCount}
+                      {totalItems}
                     </Badge>
                   )}
                 </Button>
