@@ -125,15 +125,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const register = async (email: string, password: string, name: string, role: 'user' | 'admin' = 'user', canteenData?: CanteenData) => {
     setLoading(true);
     try {
-      const redirectUrl = `${window.location.origin}/`;
-      
       console.log('Attempting registration for:', email);
       
+      // First create the auth user without email confirmation
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
           data: {
             name,
             role
@@ -148,9 +146,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       console.log('Registration successful:', data);
       
-      // If user is created and confirmed, try to create/update profile
-      if (data.user && data.user.email_confirmed_at) {
-        try {
+      // The trigger should automatically create the profile, but let's ensure it exists
+      if (data.user) {
+        // Wait a moment for the trigger to execute
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Check if profile was created by trigger, if not create it manually
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+        
+        if (!existingProfile) {
+          console.log('Creating profile manually...');
           const { error: profileError } = await supabase
             .from('profiles')
             .insert({
@@ -162,23 +171,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           
           if (profileError) {
             console.error('Profile creation error:', profileError);
+          } else {
+            console.log('Profile created successfully');
           }
-        } catch (profileErr) {
-          console.error('Error creating profile:', profileErr);
         }
-      }
-      
-      // If admin registration with canteen data, create canteen after profile is created
-      if (role === 'admin' && canteenData && data.user) {
-        // Wait a bit for the profile to be created by the trigger
-        setTimeout(async () => {
+        
+        // If admin registration with canteen data, create canteen
+        if (role === 'admin' && canteenData) {
           try {
             const { error: canteenError } = await supabase
               .from('canteens')
               .insert({
                 name: canteenData.canteenName,
                 location: canteenData.canteenLocation,
-                admin_user_id: data.user!.id
+                admin_user_id: data.user.id
               });
             
             if (canteenError) {
@@ -189,7 +195,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           } catch (err) {
             console.error('Error creating canteen:', err);
           }
-        }, 2000);
+        }
       }
       
     } catch (error: any) {
