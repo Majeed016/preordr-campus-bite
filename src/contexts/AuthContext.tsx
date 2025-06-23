@@ -1,7 +1,9 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
-interface User {
+interface UserProfile {
   id: string;
   email: string;
   name: string;
@@ -15,7 +17,8 @@ interface CanteenData {
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: UserProfile | null;
+  session: Session | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string, role?: 'user' | 'admin', canteenData?: CanteenData) => Promise<void>;
@@ -38,37 +41,62 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in (from localStorage for demo)
-    const storedUser = localStorage.getItem('cafepreorder_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
+        setSession(session);
+        
+        if (session?.user) {
+          // Fetch user profile from our profiles table
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profile && !error) {
+            setUser(profile);
+          } else {
+            console.error('Error fetching profile:', error);
+            setUser(null);
+          }
+        } else {
+          setUser(null);
+        }
+        setLoading(false);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.email);
+      if (session) {
+        // The auth state change listener will handle setting the user
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      // Demo login - in real app, this would use Supabase
-      console.log('Login attempt:', { email, password });
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock user data with role-based routing
-      const mockUser: User = {
-        id: '1',
+      const { error } = await supabase.auth.signInWithPassword({
         email,
-        name: email.split('@')[0],
-        role: email.includes('admin') ? 'admin' : 'user'
-      };
+        password
+      });
       
-      setUser(mockUser);
-      localStorage.setItem('cafepreorder_user', JSON.stringify(mockUser));
+      if (error) throw error;
+      
+      console.log('Login successful');
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -80,34 +108,47 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const register = async (email: string, password: string, name: string, role: 'user' | 'admin' = 'user', canteenData?: CanteenData) => {
     setLoading(true);
     try {
-      // Demo registration - in real app, this would use Supabase
-      console.log('Register attempt:', { email, password, name, role, canteenData });
+      const redirectUrl = `${window.location.origin}/`;
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // If admin registration, simulate canteen creation
-      if (role === 'admin' && canteenData) {
-        console.log('Creating canteen:', canteenData);
-        // In real app: upload photo to Supabase Storage, create canteen record
-        localStorage.setItem('demo_canteen', JSON.stringify({
-          id: Date.now().toString(),
-          name: canteenData.canteenName,
-          location: canteenData.canteenLocation,
-          admin_user_id: Date.now().toString()
-        }));
-      }
-      
-      // Mock user data
-      const mockUser: User = {
-        id: Date.now().toString(),
+      const { data, error } = await supabase.auth.signUp({
         email,
-        name,
-        role
-      };
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            name,
+            role
+          }
+        }
+      });
       
-      setUser(mockUser);
-      localStorage.setItem('cafepreorder_user', JSON.stringify(mockUser));
+      if (error) throw error;
+      
+      console.log('Registration successful:', data);
+      
+      // If admin registration with canteen data, create canteen after profile is created
+      if (role === 'admin' && canteenData && data.user) {
+        // Wait a bit for the profile to be created by the trigger
+        setTimeout(async () => {
+          try {
+            const { error: canteenError } = await supabase
+              .from('canteens')
+              .insert({
+                name: canteenData.canteenName,
+                location: canteenData.canteenLocation,
+                admin_user_id: data.user!.id
+              });
+            
+            if (canteenError) {
+              console.error('Error creating canteen:', canteenError);
+            } else {
+              console.log('Canteen created successfully');
+            }
+          } catch (err) {
+            console.error('Error creating canteen:', err);
+          }
+        }, 2000);
+      }
     } catch (error) {
       console.error('Registration failed:', error);
       throw error;
@@ -116,15 +157,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('cafepreorder_user');
-    localStorage.removeItem('selected_canteen');
-    localStorage.removeItem('demo_canteen');
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+      console.log('Logout successful');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   const value = {
     user,
+    session,
     loading,
     login,
     register,

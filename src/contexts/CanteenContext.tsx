@@ -1,18 +1,22 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Canteen {
   id: string;
   name: string;
   location: string;
-  admin_user_id?: string;
+  description?: string;
+  image_url?: string;
+  is_active: boolean;
 }
 
 interface CanteenContextType {
-  selectedCanteen: Canteen | null;
   canteens: Canteen[];
+  selectedCanteen: Canteen | null;
+  loading: boolean;
   selectCanteen: (canteen: Canteen) => void;
-  clearCanteen: () => void;
+  refreshCanteens: () => Promise<void>;
 }
 
 const CanteenContext = createContext<CanteenContextType | undefined>(undefined);
@@ -29,41 +33,62 @@ interface CanteenProviderProps {
   children: ReactNode;
 }
 
-// Mock canteens data
-const mockCanteens: Canteen[] = [
-  { id: '1', name: 'Main Campus Cafeteria', location: 'Building A, Ground Floor' },
-  { id: '2', name: 'Engineering Block Canteen', location: 'Engineering Block, 2nd Floor' },
-  { id: '3', name: 'Library Food Court', location: 'Central Library, Basement' },
-  { id: '4', name: 'Sports Complex Cafe', location: 'Sports Complex, Ground Floor' },
-];
-
 export const CanteenProvider = ({ children }: CanteenProviderProps) => {
+  const [canteens, setCanteens] = useState<Canteen[]>([]);
   const [selectedCanteen, setSelectedCanteen] = useState<Canteen | null>(null);
-  const [canteens] = useState<Canteen[]>(mockCanteens);
+  const [loading, setLoading] = useState(true);
+
+  const refreshCanteens = async () => {
+    try {
+      console.log('Fetching canteens...');
+      const { data, error } = await supabase
+        .from('canteens')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) {
+        console.error('Error fetching canteens:', error);
+        return;
+      }
+      
+      console.log('Canteens fetched:', data);
+      setCanteens(data || []);
+    } catch (error) {
+      console.error('Error in refreshCanteens:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Check if canteen is selected (from localStorage)
+    refreshCanteens();
+    
+    // Check for previously selected canteen
     const storedCanteen = localStorage.getItem('selected_canteen');
     if (storedCanteen) {
-      setSelectedCanteen(JSON.parse(storedCanteen));
+      try {
+        const parsed = JSON.parse(storedCanteen);
+        setSelectedCanteen(parsed);
+      } catch (error) {
+        console.error('Error parsing stored canteen:', error);
+        localStorage.removeItem('selected_canteen');
+      }
     }
   }, []);
 
   const selectCanteen = (canteen: Canteen) => {
     setSelectedCanteen(canteen);
     localStorage.setItem('selected_canteen', JSON.stringify(canteen));
-  };
-
-  const clearCanteen = () => {
-    setSelectedCanteen(null);
-    localStorage.removeItem('selected_canteen');
+    console.log('Canteen selected:', canteen.name);
   };
 
   const value = {
-    selectedCanteen,
     canteens,
+    selectedCanteen,
+    loading,
     selectCanteen,
-    clearCanteen
+    refreshCanteens
   };
 
   return (

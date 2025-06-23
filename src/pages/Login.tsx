@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,8 +16,18 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<'user' | 'admin'>('user');
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  if (user) {
+    if (user.role === 'admin') {
+      navigate('/admin');
+    } else {
+      navigate('/canteen-selection');
+    }
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,23 +42,10 @@ const Login = () => {
       await login(email, password);
       toast.success('Welcome back!');
       
-      // Get user data to check role
-      const userData = JSON.parse(localStorage.getItem('cafepreorder_user') || '{}');
-      
-      // Verify the selected role matches the actual user role
-      if (userData.role !== selectedRole) {
-        toast.error(`Invalid credentials for ${selectedRole === 'admin' ? 'Canteen Admin' : 'User'} login`);
-        return;
-      }
-      
-      // Role-based navigation
-      if (userData.role === 'admin') {
-        navigate('/admin');
-      } else {
-        navigate('/canteen-selection');
-      }
-    } catch (error) {
-      toast.error('Login failed. Please check your credentials.');
+      // Navigation will be handled by the auth state change in AuthContext
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.error(error.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -143,15 +140,6 @@ const Login = () => {
                 Sign up
               </Link>
             </p>
-          </div>
-
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-600 mb-2">Demo accounts:</p>
-            <div className="space-y-1">
-              <p className="text-xs">User: user@example.com</p>
-              <p className="text-xs">Admin: admin@example.com</p>
-              <p className="text-xs">Password: any password</p>
-            </div>
           </div>
         </CardContent>
       </Card>
