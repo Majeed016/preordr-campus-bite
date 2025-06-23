@@ -54,16 +54,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         
         if (session?.user) {
           // Fetch user profile from our profiles table
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (profile && !error) {
-            setUser(profile);
-          } else {
-            console.error('Error fetching profile:', error);
+          try {
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (profile && !error) {
+              setUser(profile);
+            } else {
+              console.error('Error fetching profile:', error);
+              // If profile doesn't exist, create a basic one
+              if (error?.code === 'PGRST116') {
+                const basicProfile: UserProfile = {
+                  id: session.user.id,
+                  email: session.user.email || '',
+                  name: session.user.user_metadata?.name || session.user.email || '',
+                  role: 'user'
+                };
+                setUser(basicProfile);
+              } else {
+                setUser(null);
+              }
+            }
+          } catch (err) {
+            console.error('Error in auth state change:', err);
             setUser(null);
           }
         } else {
@@ -76,9 +92,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Initial session check:', session?.user?.email);
-      if (session) {
-        // The auth state change listener will handle setting the user
-      } else {
+      if (!session) {
         setLoading(false);
       }
     });
@@ -89,15 +103,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Login error details:', error);
+        throw new Error(error.message);
+      }
       
-      console.log('Login successful');
-    } catch (error) {
+      console.log('Login successful for:', data.user?.email);
+    } catch (error: any) {
       console.error('Login failed:', error);
       throw error;
     } finally {
@@ -109,6 +126,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setLoading(true);
     try {
       const redirectUrl = `${window.location.origin}/`;
+      
+      console.log('Attempting registration for:', email);
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -122,9 +141,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Registration error details:', error);
+        throw new Error(error.message);
+      }
       
       console.log('Registration successful:', data);
+      
+      // If user is created and confirmed, try to create/update profile
+      if (data.user && data.user.email_confirmed_at) {
+        try {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              email: email,
+              name: name,
+              role: role
+            });
+          
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+          }
+        } catch (profileErr) {
+          console.error('Error creating profile:', profileErr);
+        }
+      }
       
       // If admin registration with canteen data, create canteen after profile is created
       if (role === 'admin' && canteenData && data.user) {
@@ -149,7 +191,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           }
         }, 2000);
       }
-    } catch (error) {
+      
+    } catch (error: any) {
       console.error('Registration failed:', error);
       throw error;
     } finally {
