@@ -34,8 +34,18 @@ const Register = () => {
   
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, user } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  if (user) {
+    if (user.role === 'admin') {
+      navigate('/admin');
+    } else {
+      navigate('/canteen-selection');
+    }
+    return null;
+  }
 
   const handleUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,10 +68,21 @@ const Register = () => {
     setLoading(true);
     try {
       await register(userForm.email, userForm.password, userForm.name, 'user');
-      toast.success('Account created successfully!');
-      navigate('/canteen-selection');
-    } catch (error) {
-      toast.error('Registration failed. Please try again.');
+      toast.success('Account created successfully! You can now sign in.');
+      
+      // Clear form
+      setUserForm({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
+      });
+      
+      // Navigate to login
+      navigate('/login');
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast.error(error.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -92,10 +113,24 @@ const Register = () => {
         canteenLocation: adminForm.canteenLocation,
         canteenPhoto: adminForm.canteenPhoto
       });
-      toast.success('Admin account created successfully!');
-      navigate('/admin');
-    } catch (error) {
-      toast.error('Registration failed. Please try again.');
+      toast.success('Admin account created successfully! You can now sign in.');
+      
+      // Clear form
+      setAdminForm({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        canteenName: '',
+        canteenLocation: '',
+        canteenPhoto: null
+      });
+      
+      // Navigate to login
+      navigate('/login');
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast.error(error.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }

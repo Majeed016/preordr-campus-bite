@@ -53,7 +53,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSession(session);
         
         if (session?.user) {
-          // Defer profile fetching to avoid deadlocks
+          // Create basic profile immediately
+          const basicProfile: UserProfile = {
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata?.name || session.user.email || 'User',
+            role: (session.user.user_metadata?.role as 'user' | 'admin') || 'user'
+          };
+          setUser(basicProfile);
+          
+          // Try to fetch or create profile in database
           setTimeout(async () => {
             try {
               const { data: profile, error } = await supabase
@@ -65,38 +74,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               if (profile && !error) {
                 setUser(profile);
               } else {
-                console.error('Error fetching profile:', error);
-                // Create a basic profile if it doesn't exist
-                const basicProfile: UserProfile = {
-                  id: session.user.id,
-                  email: session.user.email || '',
-                  name: session.user.user_metadata?.name || session.user.email || '',
-                  role: 'user'
-                };
-                setUser(basicProfile);
-                
-                // Try to create the profile in the database
-                await supabase
+                // Create profile if it doesn't exist
+                const { error: insertError } = await supabase
                   .from('profiles')
                   .insert({
                     id: session.user.id,
                     email: session.user.email || '',
-                    name: session.user.user_metadata?.name || session.user.email || '',
-                    role: 'user'
+                    name: session.user.user_metadata?.name || session.user.email || 'User',
+                    role: (session.user.user_metadata?.role as 'user' | 'admin') || 'user'
                   });
+                
+                if (insertError) {
+                  console.error('Error creating profile:', insertError);
+                }
               }
             } catch (err) {
               console.error('Error in profile setup:', err);
-              // Create basic profile as fallback
-              const basicProfile: UserProfile = {
-                id: session.user.id,
-                email: session.user.email || '',
-                name: session.user.user_metadata?.name || session.user.email || '',
-                role: 'user'
-              };
-              setUser(basicProfile);
             }
-          }, 100);
+          }, 500);
         } else {
           setUser(null);
         }
@@ -118,36 +113,36 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
+      console.log('Attempting login for:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
       if (error) {
-        console.error('Login error details:', error);
+        console.error('Login error:', error.message);
         throw new Error(error.message);
       }
       
       console.log('Login successful for:', data.user?.email);
     } catch (error: any) {
       console.error('Login failed:', error);
-      throw error;
-    } finally {
       setLoading(false);
+      throw error;
     }
   };
 
   const register = async (email: string, password: string, name: string, role: 'user' | 'admin' = 'user', canteenData?: CanteenData) => {
     setLoading(true);
     try {
-      console.log('Attempting registration for:', email);
+      console.log('Attempting registration for:', email, 'with role:', role);
       
-      // Create the auth user without email confirmation
+      // Create the auth user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
           data: {
             name,
             role
@@ -156,7 +151,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
       
       if (error) {
-        console.error('Registration error details:', error);
+        console.error('Registration error:', error.message);
         throw new Error(error.message);
       }
       
@@ -164,22 +159,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         throw new Error('User creation failed');
       }
       
-      console.log('Registration successful:', data);
+      console.log('Registration successful for:', data.user.email);
       
-      // Since email confirmation is disabled, the user should be immediately available
-      // The trigger should create the profile automatically
-      
-      // If admin registration with canteen data, create canteen
+      // For admin registration with canteen data
       if (role === 'admin' && canteenData && data.user) {
         try {
-          // Wait a bit for the profile to be created by the trigger
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Wait for profile creation
+          await new Promise(resolve => setTimeout(resolve, 2000));
           
           const { error: canteenError } = await supabase
             .from('canteens')
             .insert({
               name: canteenData.canteenName,
-              location: canteenData.canteenLocation,
+              location: canteenData.canteenLocation || '',
               admin_user_id: data.user.id
             });
           
@@ -195,9 +187,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
     } catch (error: any) {
       console.error('Registration failed:', error);
-      throw error;
-    } finally {
       setLoading(false);
+      throw error;
     }
   };
 

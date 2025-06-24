@@ -40,7 +40,9 @@ const Login = () => {
       await login(email, password);
       toast.success('Welcome back!');
       
-      // Navigation will be handled by the auth state change in AuthContext
+      // Clear form
+      setEmail('');
+      setPassword('');
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error(error.message || 'Login failed. Please check your credentials.');
