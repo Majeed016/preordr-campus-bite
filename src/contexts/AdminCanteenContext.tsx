@@ -58,7 +58,18 @@ export const AdminCanteenProvider = ({ children }: AdminCanteenProviderProps) =>
         return;
       }
       
-      setCanteen(data);
+      // Transform the data to match our interface
+      const canteenData: AdminCanteen = {
+        id: data.id,
+        name: data.name,
+        location: data.location || '',
+        description: data.description,
+        image_url: data.image_url,
+        is_active: data.is_active ?? true,
+        accepting_orders: data.accepting_orders ?? true
+      };
+      
+      setCanteen(canteenData);
     } catch (error) {
       console.error('Error in refreshCanteen:', error);
     } finally {

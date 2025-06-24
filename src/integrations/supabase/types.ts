@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       canteens: {
         Row: {
+          accepting_orders: boolean
           admin_user_id: string
           created_at: string | null
           description: string | null
@@ -22,6 +23,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          accepting_orders?: boolean
           admin_user_id: string
           created_at?: string | null
           description?: string | null
@@ -33,6 +35,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          accepting_orders?: boolean
           admin_user_id?: string
           created_at?: string | null
           description?: string | null
