@@ -53,20 +53,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSession(session);
         
         if (session?.user) {
-          // Fetch user profile from our profiles table
-          try {
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            
-            if (profile && !error) {
-              setUser(profile);
-            } else {
-              console.error('Error fetching profile:', error);
-              // If profile doesn't exist, create a basic one
-              if (error?.code === 'PGRST116') {
+          // Defer profile fetching to avoid deadlocks
+          setTimeout(async () => {
+            try {
+              const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+              
+              if (profile && !error) {
+                setUser(profile);
+              } else {
+                console.error('Error fetching profile:', error);
+                // Create a basic profile if it doesn't exist
                 const basicProfile: UserProfile = {
                   id: session.user.id,
                   email: session.user.email || '',
@@ -74,14 +74,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                   role: 'user'
                 };
                 setUser(basicProfile);
-              } else {
-                setUser(null);
+                
+                // Try to create the profile in the database
+                await supabase
+                  .from('profiles')
+                  .insert({
+                    id: session.user.id,
+                    email: session.user.email || '',
+                    name: session.user.user_metadata?.name || session.user.email || '',
+                    role: 'user'
+                  });
               }
+            } catch (err) {
+              console.error('Error in profile setup:', err);
+              // Create basic profile as fallback
+              const basicProfile: UserProfile = {
+                id: session.user.id,
+                email: session.user.email || '',
+                name: session.user.user_metadata?.name || session.user.email || '',
+                role: 'user'
+              };
+              setUser(basicProfile);
             }
-          } catch (err) {
-            console.error('Error in auth state change:', err);
-            setUser(null);
-          }
+          }, 100);
         } else {
           setUser(null);
         }
@@ -127,11 +142,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       console.log('Attempting registration for:', email);
       
-      // First create the auth user without email confirmation
+      // Create the auth user without email confirmation
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/`,
           data: {
             name,
             role
@@ -144,57 +160,36 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         throw new Error(error.message);
       }
       
+      if (!data.user) {
+        throw new Error('User creation failed');
+      }
+      
       console.log('Registration successful:', data);
       
-      // The trigger should automatically create the profile, but let's ensure it exists
-      if (data.user) {
-        // Wait a moment for the trigger to execute
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Check if profile was created by trigger, if not create it manually
-        const { data: existingProfile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-        
-        if (!existingProfile) {
-          console.log('Creating profile manually...');
-          const { error: profileError } = await supabase
-            .from('profiles')
+      // Since email confirmation is disabled, the user should be immediately available
+      // The trigger should create the profile automatically
+      
+      // If admin registration with canteen data, create canteen
+      if (role === 'admin' && canteenData && data.user) {
+        try {
+          // Wait a bit for the profile to be created by the trigger
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          const { error: canteenError } = await supabase
+            .from('canteens')
             .insert({
-              id: data.user.id,
-              email: email,
-              name: name,
-              role: role
+              name: canteenData.canteenName,
+              location: canteenData.canteenLocation,
+              admin_user_id: data.user.id
             });
           
-          if (profileError) {
-            console.error('Profile creation error:', profileError);
+          if (canteenError) {
+            console.error('Error creating canteen:', canteenError);
           } else {
-            console.log('Profile created successfully');
+            console.log('Canteen created successfully');
           }
-        }
-        
-        // If admin registration with canteen data, create canteen
-        if (role === 'admin' && canteenData) {
-          try {
-            const { error: canteenError } = await supabase
-              .from('canteens')
-              .insert({
-                name: canteenData.canteenName,
-                location: canteenData.canteenLocation,
-                admin_user_id: data.user.id
-              });
-            
-            if (canteenError) {
-              console.error('Error creating canteen:', canteenError);
-            } else {
-              console.log('Canteen created successfully');
-            }
-          } catch (err) {
-            console.error('Error creating canteen:', err);
-          }
+        } catch (err) {
+          console.error('Error creating canteen:', err);
         }
       }
       
