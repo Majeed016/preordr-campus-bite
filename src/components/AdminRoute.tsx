@@ -2,6 +2,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, useLocation } from 'react-router-dom';
 import { ReactNode } from 'react';
+import { AdminCanteenProvider } from '@/contexts/AdminCanteenContext';
 
 interface AdminRouteProps {
   children: ReactNode;
@@ -27,7 +28,11 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
     return <Navigate to="/menu" replace />;
   }
 
-  return <>{children}</>;
+  return (
+    <AdminCanteenProvider>
+      {children}
+    </AdminCanteenProvider>
+  );
 };
 
 export default AdminRoute;

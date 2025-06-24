@@ -3,9 +3,13 @@ import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { DollarSign, Package, Clock, TrendingUp } from 'lucide-react';
+import { useAdminCanteen } from '@/contexts/AdminCanteenContext';
 
 const AdminDashboard = () => {
+  const { canteen, loading, toggleOrderAcceptance } = useAdminCanteen();
   const [stats, setStats] = useState({
     todayOrders: 0,
     todayRevenue: 0,
@@ -23,6 +27,24 @@ const AdminDashboard = () => {
     });
   }, []);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-64 mb-4"></div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1,2,3,4].map(i => (
+                <div key={i} className="h-32 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -30,8 +52,41 @@ const AdminDashboard = () => {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Manage your canteen operations</p>
+          <p className="text-gray-600">
+            {canteen ? `Managing ${canteen.name}` : 'Manage your canteen operations'}
+          </p>
         </div>
+
+        {/* Order Acceptance Toggle */}
+        {canteen && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Order Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-4">
+                <Switch
+                  id="accepting-orders"
+                  checked={canteen.accepting_orders}
+                  onCheckedChange={toggleOrderAcceptance}
+                />
+                <Label htmlFor="accepting-orders" className="text-lg">
+                  {canteen.accepting_orders ? (
+                    <span className="text-green-600">✅ Accepting Orders</span>
+                  ) : (
+                    <span className="text-red-600">❌ Not Accepting Orders</span>
+                  )}
+                </Label>
+              </div>
+              <p className="text-sm text-gray-600 mt-2">
+                {canteen.accepting_orders 
+                  ? 'Customers can place orders from your canteen'
+                  : 'Customers will see that your canteen is currently not accepting orders'
+                }
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
