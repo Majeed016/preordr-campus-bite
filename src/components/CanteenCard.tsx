@@ -20,7 +20,7 @@ interface CanteenCardProps {
 }
 
 const CanteenCard = ({ canteen, onSelect }: CanteenCardProps) => {
-  const isAcceptingOrders = canteen.accepting_orders !== false; // Default to true if not set
+  const isAcceptingOrders = canteen.accepting_orders !== false;
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
@@ -68,7 +68,7 @@ const CanteenCard = ({ canteen, onSelect }: CanteenCardProps) => {
           <p className="text-gray-600 text-sm mb-4">{canteen.description}</p>
         )}
         
-        {!isAcceptingOrders ? (
+        {!isAcceptingOrders && (
           <div className="text-center p-4 bg-red-50 rounded-lg mb-4">
             <p className="text-red-700 font-medium">
               This canteen is currently not accepting orders.
@@ -77,7 +77,7 @@ const CanteenCard = ({ canteen, onSelect }: CanteenCardProps) => {
               Please check back later or try another canteen.
             </p>
           </div>
-        ) : null}
+        )}
         
         <Button 
           onClick={() => onSelect(canteen)} 

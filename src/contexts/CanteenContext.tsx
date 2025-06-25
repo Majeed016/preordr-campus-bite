@@ -9,6 +9,7 @@ interface Canteen {
   description?: string;
   image_url?: string;
   is_active: boolean;
+  accepting_orders?: boolean;
 }
 
 interface CanteenContextType {
@@ -53,7 +54,19 @@ export const CanteenProvider = ({ children }: CanteenProviderProps) => {
       }
       
       console.log('Canteens fetched:', data);
-      setCanteens(data || []);
+      
+      // Transform data to match our interface
+      const transformedCanteens = data?.map(canteen => ({
+        id: canteen.id,
+        name: canteen.name,
+        location: canteen.location || '',
+        description: canteen.description,
+        image_url: canteen.image_url,
+        is_active: canteen.is_active ?? true,
+        accepting_orders: canteen.accepting_orders ?? true
+      })) || [];
+      
+      setCanteens(transformedCanteens);
     } catch (error) {
       console.error('Error in refreshCanteens:', error);
     } finally {
