@@ -14,11 +14,20 @@ interface AdminCanteen {
   accepting_orders: boolean;
 }
 
+interface OrderStats {
+  todayOrders: number;
+  todayRevenue: number;
+  platformFees: number;
+  pendingOrders: number;
+}
+
 interface AdminCanteenContextType {
   canteen: AdminCanteen | null;
+  stats: OrderStats;
   loading: boolean;
   toggleOrderAcceptance: () => Promise<void>;
   refreshCanteen: () => Promise<void>;
+  refreshStats: () => Promise<void>;
 }
 
 const AdminCanteenContext = createContext<AdminCanteenContextType | undefined>(undefined);
@@ -37,6 +46,12 @@ interface AdminCanteenProviderProps {
 
 export const AdminCanteenProvider = ({ children }: AdminCanteenProviderProps) => {
   const [canteen, setCanteen] = useState<AdminCanteen | null>(null);
+  const [stats, setStats] = useState<OrderStats>({
+    todayOrders: 0,
+    todayRevenue: 0,
+    platformFees: 0,
+    pendingOrders: 0
+  });
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -77,6 +92,44 @@ export const AdminCanteenProvider = ({ children }: AdminCanteenProviderProps) =>
     }
   };
 
+  const refreshStats = async () => {
+    if (!canteen) return;
+
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      // Get today's orders
+      const { data: todayOrdersData, error: ordersError } = await supabase
+        .from('orders')
+        .select('total_amount, platform_fee, status')
+        .eq('canteen_id', canteen.id)
+        .gte('created_at', today.toISOString())
+        .lt('created_at', tomorrow.toISOString());
+
+      if (ordersError) {
+        console.error('Error fetching orders:', ordersError);
+        return;
+      }
+
+      const todayOrders = todayOrdersData?.length || 0;
+      const todayRevenue = todayOrdersData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+      const platformFees = todayOrdersData?.reduce((sum, order) => sum + Number(order.platform_fee), 0) || 0;
+      const pendingOrders = todayOrdersData?.filter(order => order.status === 'pending').length || 0;
+
+      setStats({
+        todayOrders,
+        todayRevenue,
+        platformFees,
+        pendingOrders
+      });
+    } catch (error) {
+      console.error('Error in refreshStats:', error);
+    }
+  };
+
   const toggleOrderAcceptance = async () => {
     if (!canteen) return;
 
@@ -110,11 +163,54 @@ export const AdminCanteenProvider = ({ children }: AdminCanteenProviderProps) =>
     refreshCanteen();
   }, [user]);
 
+  useEffect(() => {
+    if (canteen) {
+      refreshStats();
+      
+      // Set up real-time subscription for orders
+      const channel = supabase
+        .channel('admin-orders-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+            filter: `canteen_id=eq.${canteen.id}`
+          },
+          (payload) => {
+            console.log('Order change detected:', payload);
+            refreshStats();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'canteens',
+            filter: `id=eq.${canteen.id}`
+          },
+          (payload) => {
+            console.log('Canteen change detected:', payload);
+            refreshCanteen();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [canteen?.id]);
+
   const value = {
     canteen,
+    stats,
     loading,
     toggleOrderAcceptance,
-    refreshCanteen
+    refreshCanteen,
+    refreshStats
   };
 
   return (

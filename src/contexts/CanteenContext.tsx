@@ -77,6 +77,23 @@ export const CanteenProvider = ({ children }: CanteenProviderProps) => {
   useEffect(() => {
     refreshCanteens();
     
+    // Set up real-time subscription for canteens
+    const channel = supabase
+      .channel('canteens-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'canteens'
+        },
+        (payload) => {
+          console.log('Canteen change detected:', payload);
+          refreshCanteens();
+        }
+      )
+      .subscribe();
+    
     // Check for previously selected canteen
     const storedCanteen = localStorage.getItem('selected_canteen');
     if (storedCanteen) {
@@ -88,6 +105,10 @@ export const CanteenProvider = ({ children }: CanteenProviderProps) => {
         localStorage.removeItem('selected_canteen');
       }
     }
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const selectCanteen = (canteen: Canteen) => {
