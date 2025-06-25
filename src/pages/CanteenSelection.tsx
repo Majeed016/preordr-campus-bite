@@ -1,19 +1,24 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCanteen } from '@/contexts/CanteenContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Users, LogOut, Clock } from 'lucide-react';
+import { MapPin, Users, LogOut, Clock, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 const CanteenSelection = () => {
   const [selectedId, setSelectedId] = useState<string>('');
   const { user, logout } = useAuth();
-  const { canteens, selectCanteen } = useCanteen();
+  const { canteens, selectCanteen, loading, refreshCanteens } = useCanteen();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    console.log('CanteenSelection - Current canteens:', canteens);
+    console.log('CanteenSelection - Loading state:', loading);
+  }, [canteens, loading]);
 
   const handleSubmit = () => {
     if (!selectedId) {
@@ -47,10 +52,27 @@ const CanteenSelection = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    console.log('Manually refreshing canteens...');
+    await refreshCanteens();
+    toast.success('Canteens refreshed');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading canteens...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
       <div className="max-w-4xl mx-auto px-4 py-12">
-        {/* Header with logout */}
+        {/* Header with logout and refresh */}
         <div className="flex justify-between items-center mb-8">
           <div className="text-center flex-1">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
@@ -60,20 +82,47 @@ const CanteenSelection = () => {
               Please select your canteen to start ordering
             </p>
           </div>
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="flex items-center space-x-2"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Logout</span>
-          </Button>
+          <div className="flex space-x-2">
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              size="sm"
+              className="flex items-center space-x-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Refresh</span>
+            </Button>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="flex items-center space-x-2"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Debug Information */}
+        <div className="mb-4 p-4 bg-blue-50 rounded-lg text-sm">
+          <p><strong>Debug Info:</strong></p>
+          <p>Total canteens found: {canteens.length}</p>
+          <p>User role: {user?.role}</p>
+          <p>Loading: {loading ? 'Yes' : 'No'}</p>
         </div>
 
         {canteens.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-600 text-lg">No canteens available at the moment.</p>
-            <p className="text-gray-500 mt-2">Please check back later.</p>
+            <p className="text-gray-500 mt-2">Please check back later or contact support.</p>
+            <Button 
+              onClick={handleRefresh}
+              className="mt-4"
+              variant="outline"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
           </div>
         ) : (
           <>

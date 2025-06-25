@@ -42,6 +42,11 @@ export const CanteenProvider = ({ children }: CanteenProviderProps) => {
   const refreshCanteens = async () => {
     try {
       console.log('Fetching canteens...');
+      
+      // Check if user is authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Current user:', user?.id);
+      
       const { data, error } = await supabase
         .from('canteens')
         .select('*')
@@ -53,7 +58,7 @@ export const CanteenProvider = ({ children }: CanteenProviderProps) => {
         return;
       }
       
-      console.log('Canteens fetched:', data);
+      console.log('Raw canteens data from DB:', data);
       
       // Transform data to match our interface
       const transformedCanteens = data?.map(canteen => ({
@@ -66,6 +71,7 @@ export const CanteenProvider = ({ children }: CanteenProviderProps) => {
         accepting_orders: canteen.accepting_orders ?? true
       })) || [];
       
+      console.log('Transformed canteens:', transformedCanteens);
       setCanteens(transformedCanteens);
     } catch (error) {
       console.error('Error in refreshCanteens:', error);

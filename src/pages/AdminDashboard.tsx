@@ -1,13 +1,16 @@
 
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AdminNavbar from '@/components/AdminNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, Package, Clock, TrendingUp } from 'lucide-react';
+import { DollarSign, Package, Clock, TrendingUp, Users, Menu, ShoppingCart } from 'lucide-react';
 import { useAdminCanteen } from '@/contexts/AdminCanteenContext';
 
 const AdminDashboard = () => {
   const { canteen, stats, loading } = useAdminCanteen();
+  const navigate = useNavigate();
 
   if (loading) {
     return (
@@ -87,7 +90,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid lg:grid-cols-2 gap-8">
+        <div className="grid lg:grid-cols-2 gap-8 mb-8">
           <Card>
             <CardHeader>
               <CardTitle>Order Management</CardTitle>
@@ -117,13 +120,22 @@ const AdminDashboard = () => {
                     {canteen?.accepting_orders ? 'Open' : 'Closed'}
                   </Badge>
                 </div>
+
+                <Button 
+                  onClick={() => navigate('/admin/orders')}
+                  className="w-full"
+                  variant="outline"
+                >
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Manage Orders
+                </Button>
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Quick Stats</CardTitle>
+              <CardTitle>Menu Management</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -150,6 +162,15 @@ const AdminDashboard = () => {
                     {canteen?.is_active ? 'Active' : 'Inactive'}
                   </Badge>
                 </div>
+
+                <Button 
+                  onClick={() => navigate('/admin/menu')}
+                  className="w-full"
+                  variant="outline"
+                >
+                  <Menu className="h-4 w-4 mr-2" />
+                  Manage Menu Items
+                </Button>
               </div>
             </CardContent>
           </Card>

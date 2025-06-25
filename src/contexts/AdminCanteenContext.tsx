@@ -62,6 +62,8 @@ export const AdminCanteenProvider = ({ children }: AdminCanteenProviderProps) =>
     }
 
     try {
+      console.log('Fetching admin canteen for user:', user.id);
+      
       const { data, error } = await supabase
         .from('canteens')
         .select('*')
@@ -69,9 +71,15 @@ export const AdminCanteenProvider = ({ children }: AdminCanteenProviderProps) =>
         .single();
       
       if (error) {
-        console.error('Error fetching canteen:', error);
+        console.error('Error fetching admin canteen:', error);
+        if (error.code === 'PGRST116') {
+          console.log('No canteen found for admin user');
+          setCanteen(null);
+        }
         return;
       }
+      
+      console.log('Admin canteen data:', data);
       
       // Transform the data to match our interface
       const canteenData: AdminCanteen = {
@@ -135,6 +143,7 @@ export const AdminCanteenProvider = ({ children }: AdminCanteenProviderProps) =>
 
     try {
       const newStatus = !canteen.accepting_orders;
+      console.log('Toggling order acceptance to:', newStatus);
       
       const { error } = await supabase
         .from('canteens')
@@ -147,7 +156,17 @@ export const AdminCanteenProvider = ({ children }: AdminCanteenProviderProps) =>
         return;
       }
       
+      // Update local state immediately
       setCanteen({ ...canteen, accepting_orders: newStatus });
+      
+      // Also trigger a broadcast to update other contexts
+      const channel = supabase.channel('canteen-updates');
+      channel.send({
+        type: 'broadcast',
+        event: 'canteen_status_changed',
+        payload: { canteen_id: canteen.id, accepting_orders: newStatus }
+      });
+      
       toast.success(
         newStatus 
           ? 'Now accepting orders' 
@@ -168,7 +187,7 @@ export const AdminCanteenProvider = ({ children }: AdminCanteenProviderProps) =>
       refreshStats();
       
       // Set up real-time subscription for orders
-      const channel = supabase
+      const ordersChannel = supabase
         .channel('admin-orders-changes')
         .on(
           'postgres_changes',
@@ -183,6 +202,11 @@ export const AdminCanteenProvider = ({ children }: AdminCanteenProviderProps) =>
             refreshStats();
           }
         )
+        .subscribe();
+
+      // Set up real-time subscription for canteen changes
+      const canteenChannel = supabase
+        .channel('admin-canteen-changes')
         .on(
           'postgres_changes',
           {
@@ -199,7 +223,8 @@ export const AdminCanteenProvider = ({ children }: AdminCanteenProviderProps) =>
         .subscribe();
 
       return () => {
-        supabase.removeChannel(channel);
+        supabase.removeChannel(ordersChannel);
+        supabase.removeChannel(canteenChannel);
       };
     }
   }, [canteen?.id]);
