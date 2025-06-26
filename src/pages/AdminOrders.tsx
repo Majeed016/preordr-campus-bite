@@ -32,7 +32,7 @@ interface Order {
   payment_id: string;
   profiles?: {
     name: string;
-  };
+  } | null;
   order_items?: OrderItem[];
 }
 
@@ -56,7 +56,7 @@ const AdminOrders = () => {
         .from('orders')
         .select(`
           *,
-          profiles:user_id (name),
+          profiles!orders_user_id_fkey (name),
           order_items (
             *,
             menu_items (name)
