@@ -52,28 +52,49 @@ const AdminOrders = () => {
     try {
       console.log('Fetching orders for canteen:', canteen.id);
       
-      const { data, error } = await supabase
+      // First get orders
+      const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select(`
           *,
-          profiles!inner(name),
           order_items (
             *,
             menu_items (name)
           )
         `)
         .eq('canteen_id', canteen.id)
-        .eq('profiles.id', supabase.raw('orders.user_id'))
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching orders:', error);
+      if (ordersError) {
+        console.error('Error fetching orders:', ordersError);
         toast.error('Failed to fetch orders');
         return;
       }
 
-      console.log('Fetched orders:', data);
-      setOrders(data || []);
+      // Then get profiles for the users
+      if (ordersData && ordersData.length > 0) {
+        const userIds = [...new Set(ordersData.map(order => order.user_id))];
+        
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .in('id', userIds);
+
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+        }
+
+        // Combine orders with profiles
+        const ordersWithProfiles = ordersData.map(order => ({
+          ...order,
+          profiles: profilesData?.find(profile => profile.id === order.user_id) || null
+        }));
+
+        console.log('Fetched orders with profiles:', ordersWithProfiles);
+        setOrders(ordersWithProfiles);
+      } else {
+        setOrders([]);
+      }
     } catch (error) {
       console.error('Error in fetchOrders:', error);
       toast.error('Failed to fetch orders');
