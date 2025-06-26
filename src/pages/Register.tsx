@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -38,15 +37,15 @@ const Register = () => {
   const { register, user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if already logged in
-  if (user && !registrationSuccess) {
-    if (user.role === 'admin') {
-      navigate('/admin');
-    } else {
-      navigate('/canteen-selection');
+  useEffect(() => {
+    if (user && !registrationSuccess) {
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/canteen-selection');
+      }
     }
-    return null;
-  }
+  }, [user, registrationSuccess, navigate]);
 
   const handleUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,15 +113,9 @@ const Register = () => {
 
     setLoading(true);
     try {
-      await register(adminForm.email, adminForm.password, adminForm.name, 'admin', {
-        canteenName: adminForm.canteenName,
-        canteenLocation: adminForm.canteenLocation,
-        canteenPhoto: adminForm.canteenPhoto
-      });
-      
+      await register(adminForm.email, adminForm.password, adminForm.name, 'admin');
       setRegistrationSuccess(true);
-      toast.success('Admin account and canteen created successfully! You can now sign in.');
-      
+      toast.success('Admin account created successfully! Please log in and create your canteen from the dashboard.');
       // Clear form
       setAdminForm({
         name: '',
@@ -133,12 +126,10 @@ const Register = () => {
         canteenLocation: '',
         canteenPhoto: null
       });
-      
       // Navigate to login after a short delay
       setTimeout(() => {
         navigate('/login');
       }, 2000);
-      
     } catch (error: any) {
       console.error('Registration error:', error);
       toast.error(error.message || 'Registration failed. Please try again.');

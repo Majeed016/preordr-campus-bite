@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -28,6 +27,7 @@ interface AdminCanteenContextType {
   toggleOrderAcceptance: () => Promise<void>;
   refreshCanteen: () => Promise<void>;
   refreshStats: () => Promise<void>;
+  createCanteen: (canteenData: { name: string; location?: string; description?: string; image_url?: string }) => Promise<void>;
 }
 
 const AdminCanteenContext = createContext<AdminCanteenContextType | undefined>(undefined);
@@ -178,6 +178,49 @@ export const AdminCanteenProvider = ({ children }: AdminCanteenProviderProps) =>
     }
   };
 
+  const createCanteen = async (canteenData: { name: string; location?: string; description?: string; image_url?: string }) => {
+    if (!user || user.role !== 'admin') {
+      toast.error('You must be an admin to create a canteen.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('canteens')
+        .insert({
+          name: canteenData.name,
+          location: canteenData.location || '',
+          description: canteenData.description || '',
+          image_url: canteenData.image_url || '',
+          admin_user_id: user.id,
+          is_active: true,
+          accepting_orders: true
+        })
+        .select()
+        .single();
+      if (error) {
+        console.error('Error creating canteen:', error);
+        toast.error('Failed to create canteen: ' + error.message);
+        return;
+      }
+      toast.success('Canteen created successfully!');
+      setCanteen({
+        id: data.id,
+        name: data.name,
+        location: data.location,
+        description: data.description,
+        image_url: data.image_url,
+        is_active: data.is_active,
+        accepting_orders: data.accepting_orders
+      });
+    } catch (error) {
+      console.error('Error in createCanteen:', error);
+      toast.error('Failed to create canteen.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     refreshCanteen();
   }, [user]);
@@ -235,7 +278,8 @@ export const AdminCanteenProvider = ({ children }: AdminCanteenProviderProps) =>
     loading,
     toggleOrderAcceptance,
     refreshCanteen,
-    refreshStats
+    refreshStats,
+    createCanteen
   };
 
   return (

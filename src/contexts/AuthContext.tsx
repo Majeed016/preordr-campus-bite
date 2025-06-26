@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -141,7 +140,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         
         if (profileError) {
           console.error('Profile creation error:', profileError);
-          // Don't throw error here, continue with canteen creation if needed
+          // Don't throw error here
         } else {
           console.log('Profile created successfully');
         }
@@ -149,39 +148,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         console.error('Profile creation failed:', err);
         // Continue anyway
       }
-      
-      // Step 4: Create canteen for admin users
-      if (role === 'admin' && canteenData) {
-        try {
-          // Wait a bit more for everything to settle
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          console.log('Creating canteen for admin:', authData.user.id);
-          const { data: canteenResult, error: canteenError } = await supabase
-            .from('canteens')
-            .insert({
-              name: canteenData.canteenName,
-              location: canteenData.canteenLocation || 'Not specified',
-              admin_user_id: authData.user.id,
-              is_active: true,
-              accepting_orders: true,
-              description: `Welcome to ${canteenData.canteenName}! We serve delicious food with love.`
-            })
-            .select();
-          
-          if (canteenError) {
-            console.error('Canteen creation error:', canteenError);
-            throw new Error(`Failed to create canteen: ${canteenError.message}`);
-          } else {
-            console.log('Canteen created successfully:', canteenResult);
-          }
-        } catch (err) {
-          console.error('Error creating canteen:', err);
-          throw new Error('Failed to create canteen for admin user');
-        }
-      }
-      
-      console.log('Registration completed successfully');
+      // Registration completed successfully
       
     } catch (error: any) {
       console.error('Registration failed:', error);

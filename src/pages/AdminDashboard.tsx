@@ -1,5 +1,4 @@
-
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminNavbar from '@/components/AdminNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,8 +8,10 @@ import { DollarSign, Package, Clock, TrendingUp, Users, Menu, ShoppingCart } fro
 import { useAdminCanteen } from '@/contexts/AdminCanteenContext';
 
 const AdminDashboard = () => {
-  const { canteen, stats, loading } = useAdminCanteen();
+  const { canteen, stats, loading, createCanteen } = useAdminCanteen();
   const navigate = useNavigate();
+  const [form, setForm] = useState({ name: '', location: '', description: '' });
+  const [submitting, setSubmitting] = useState(false);
 
   if (loading) {
     return (
@@ -25,6 +26,72 @@ const AdminDashboard = () => {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show canteen creation form if no canteen exists
+  if (!canteen) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <AdminNavbar />
+        <div className="w-full max-w-md bg-white rounded-lg shadow p-8 mt-8">
+          <h2 className="text-2xl font-bold mb-4 text-center">Create Your Canteen</h2>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setSubmitting(true);
+              await createCanteen({
+                name: form.name,
+                location: form.location,
+                description: form.description
+              });
+              setSubmitting(false);
+            }}
+            className="space-y-4"
+          >
+            <div>
+              <label className="block text-sm font-medium mb-1">Canteen Name *</label>
+              <input
+                type="text"
+                required
+                value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                className="w-full border rounded px-3 py-2"
+                placeholder="Enter canteen name"
+                disabled={submitting}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Location</label>
+              <input
+                type="text"
+                value={form.location}
+                onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+                className="w-full border rounded px-3 py-2"
+                placeholder="Enter location (optional)"
+                disabled={submitting}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Description</label>
+              <textarea
+                value={form.description}
+                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                className="w-full border rounded px-3 py-2"
+                placeholder="Describe your canteen (optional)"
+                disabled={submitting}
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-orange-600 text-white py-2 rounded hover:bg-orange-700 font-semibold"
+              disabled={submitting}
+            >
+              {submitting ? 'Creating...' : 'Create Canteen'}
+            </button>
+          </form>
         </div>
       </div>
     );
