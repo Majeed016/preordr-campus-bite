@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAdminCanteen } from '@/contexts/AdminCanteenContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,7 +26,7 @@ interface Order {
   total_amount: number;
   platform_fee: number;
   canteen_amount: number;
-  status: 'pending' | 'preparing' | 'ready' | 'completed' | 'paid';
+  status: 'pending' | 'preparing' | 'ready' | 'completed' | 'cancelled';
   pickup_time: string;
   created_at: string;
   payment_id: string;
@@ -148,11 +147,11 @@ const AdminOrders = () => {
 
   const getStatusColor = (status: Order['status']) => {
     switch (status) {
-      case 'pending':
-      case 'paid': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'preparing': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'ready': return 'bg-green-100 text-green-800 border-green-200';
       case 'completed': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -164,8 +163,7 @@ const AdminOrders = () => {
 
   const getNextStatus = (currentStatus: Order['status']): Order['status'] | null => {
     switch (currentStatus) {
-      case 'pending':
-      case 'paid': return 'preparing';
+      case 'pending': return 'preparing';
       case 'preparing': return 'ready';
       case 'ready': return 'completed';
       default: return null;
@@ -216,10 +214,10 @@ const AdminOrders = () => {
             <SelectContent>
               <SelectItem value="all">All Orders</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
               <SelectItem value="preparing">Preparing</SelectItem>
               <SelectItem value="ready">Ready</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
         </div>

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
@@ -145,7 +144,7 @@ const Checkout = () => {
               .from('orders')
               .update({
                 payment_id: response.razorpay_payment_id,
-                status: 'paid'
+                status: 'pending'
               })
               .eq('id', orderData.id);
 
