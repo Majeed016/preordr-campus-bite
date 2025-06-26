@@ -105,11 +105,9 @@ const AdminOrders = () => {
 
   useEffect(() => {
     if (canteen) {
-      fetchOrders();
-      
-      // Set up real-time subscription for orders
+      const channelName = `admin-orders-changes-${canteen.id}`;
       const ordersChannel = supabase
-        .channel('admin-orders-changes')
+        .channel(channelName)
         .on(
           'postgres_changes',
           {
@@ -121,7 +119,6 @@ const AdminOrders = () => {
           (payload) => {
             console.log('Order change detected:', payload);
             fetchOrders();
-            
             if (payload.eventType === 'INSERT') {
               toast.success(`🛎️ New order received!`, {
                 duration: 5000,
