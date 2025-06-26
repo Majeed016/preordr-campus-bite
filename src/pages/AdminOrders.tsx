@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAdminCanteen } from '@/contexts/AdminCanteenContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -57,7 +56,7 @@ const AdminOrders = () => {
         .from('orders')
         .select(`
           *,
-          profiles!orders_user_id_fkey (name),
+          profiles:user_id (name),
           order_items (
             *,
             menu_items (name)
