@@ -65,6 +65,32 @@ const Menu = () => {
     }
   }, [selectedCanteen]);
 
+  // Set up realtime subscription for menu items
+  useEffect(() => {
+    if (!selectedCanteen) return;
+
+    const channel = supabase
+      .channel(`menu-items-changes-${selectedCanteen.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'menu_items',
+          filter: `canteen_id=eq.${selectedCanteen.id}`
+        },
+        (payload) => {
+          console.log('Menu item change detected:', payload);
+          fetchMenuItems();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedCanteen]);
+
   const categories = ['All', ...Array.from(new Set(menuItems.map(item => item.category)))];
 
   const filteredItems = menuItems.filter(item => {
@@ -74,25 +100,30 @@ const Menu = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const handleAddToCart = (item: MenuItem) => {
+  const handleAddToCart = async (item: MenuItem) => {
     if (item.available_quantity <= 0) {
       toast.error('Item is out of stock');
       return;
     }
 
-    // Pass complete MenuItem object with all required properties
-    addItem({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      description: item.description,
-      image_url: item.image_url,
-      category: item.category,
-      available_quantity: item.available_quantity,
-      canteen_id: selectedCanteen?.id || 'default-canteen'
-    });
-    
-    toast.success(`${item.name} added to cart`);
+    try {
+      // Pass complete MenuItem object with all required properties
+      await addItem({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        description: item.description,
+        image_url: item.image_url,
+        category: item.category,
+        available_quantity: item.available_quantity,
+        canteen_id: selectedCanteen?.id || 'default-canteen'
+      });
+      
+      toast.success(`${item.name} added to cart`);
+    } catch (error) {
+      console.error('Error adding item to cart:', error);
+      toast.error('Failed to add item to cart');
+    }
   };
 
   if (!selectedCanteen) {

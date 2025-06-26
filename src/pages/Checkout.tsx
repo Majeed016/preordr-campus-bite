@@ -127,76 +127,62 @@ const Checkout = () => {
         });
       }
 
-      // Razorpay options
+      // Initialize Razorpay
       const options = {
-        key: 'rzp_test_9YdEm8UrDrMsEe', // Replace with your Razorpay key
+        key: 'rzp_test_51O8X8X8X8X8X8', // Replace with your actual key
         amount: finalTotal * 100, // Amount in paise
         currency: 'INR',
-        name: selectedCanteen.name,
+        name: 'Campus Bite',
         description: `Order from ${selectedCanteen.name}`,
-        order_id: orderData.id, // Use our order ID
+        order_id: orderData.id,
         handler: async function (response: any) {
-          console.log('Payment success:', response);
-          
           try {
-            // Update order with payment details
+            // Update order with payment ID
             const { error: updateError } = await supabase
               .from('orders')
-              .update({
+              .update({ 
                 payment_id: response.razorpay_payment_id,
-                status: 'pending'
+                status: 'preparing'
               })
               .eq('id', orderData.id);
 
             if (updateError) {
               console.error('Error updating order:', updateError);
-              toast.error('Payment successful but failed to update order');
-              return;
+              throw new Error('Failed to update order');
             }
 
-            // Clear cart and redirect
-            clearCart();
-            toast.success('Payment successful!');
-            
-            navigate('/order-confirmation', {
-              state: {
-                orderId: orderData.id,
-                paymentId: response.razorpay_payment_id,
-                total: finalTotal,
-                pickupTime
-              }
-            });
+            // Clear cart after successful payment
+            try {
+              await clearCart();
+            } catch (cartError) {
+              console.error('Error clearing cart:', cartError);
+              // Don't fail the order if cart clearing fails
+            }
 
+            toast.success('Payment successful! Your order has been placed.');
+            navigate('/order-confirmation', { 
+              state: { orderId: orderData.id } 
+            });
           } catch (error) {
-            console.error('Error handling payment success:', error);
-            toast.error('Payment successful but failed to process order');
+            console.error('Error processing payment:', error);
+            toast.error('Payment successful but order update failed. Please contact support.');
           }
         },
         prefill: {
           name: user.name,
           email: user.email,
         },
-        notes: {
-          order_id: orderData.id,
-          canteen_id: selectedCanteen.id,
-        },
         theme: {
-          color: '#ea580c'
+          color: '#f97316',
         },
-        modal: {
-          ondismiss: function() {
-            console.log('Payment cancelled');
-            setLoading(false);
-          }
-        }
       };
 
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
-
-    } catch (error) {
-      console.error('Payment failed:', error);
-      toast.error('Payment failed. Please try again.');
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (error: any) {
+      console.error('Payment error:', error);
+      toast.error(error.message || 'Payment failed. Please try again.');
+    } finally {
       setLoading(false);
     }
   };

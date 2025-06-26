@@ -48,6 +48,48 @@ export type Database = {
         }
         Relationships: []
       }
+      cart_items: {
+        Row: {
+          id: string
+          user_id: string
+          menu_item_id: string
+          quantity: number
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          menu_item_id: string
+          quantity: number
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          menu_item_id?: string
+          quantity?: number
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cart_items_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cart_items_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       menu_items: {
         Row: {
           available_quantity: number
@@ -95,7 +137,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "canteens"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       order_items: {
@@ -140,7 +182,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       orders: {
@@ -193,35 +235,43 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "canteens"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       profiles: {
         Row: {
           created_at: string | null
-          email: string
+          email: string | null
           id: string
-          name: string
-          role: Database["public"]["Enums"]["user_role"]
+          name: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
-          email: string
+          email?: string | null
           id: string
-          name: string
-          role?: Database["public"]["Enums"]["user_role"]
+          name?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
-          email?: string
+          email?: string | null
           id?: string
-          name?: string
-          role?: Database["public"]["Enums"]["user_role"]
+          name?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
@@ -229,17 +279,14 @@ export type Database = {
     }
     Functions: {
       get_user_role: {
-        Args: { user_id: string }
+        Args: {
+          user_id: string
+        }
         Returns: Database["public"]["Enums"]["user_role"]
       }
     }
     Enums: {
-      order_status:
-        | "pending"
-        | "preparing"
-        | "ready"
-        | "completed"
-        | "cancelled"
+      order_status: "pending" | "preparing" | "ready" | "completed" | "cancelled"
       user_role: "user" | "admin"
     }
     CompositeTypes: {

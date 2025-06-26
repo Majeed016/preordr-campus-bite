@@ -1,5 +1,7 @@
-
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthContext';
+import { toast } from 'sonner';
 
 interface MenuItem {
   id: string;
@@ -14,16 +16,18 @@ interface MenuItem {
 
 interface CartItem extends MenuItem {
   quantity: number;
+  id: string; // This will be the cart item ID from database
 }
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: MenuItem, quantity?: number) => void;
-  removeItem: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
-  clearCart: () => void;
+  addItem: (item: MenuItem, quantity?: number) => Promise<void>;
+  removeItem: (id: string) => Promise<void>;
+  updateQuantity: (id: string, quantity: number) => Promise<void>;
+  clearCart: () => Promise<void>;
   totalAmount: number;
   totalItems: number;
+  loading: boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -41,52 +45,195 @@ interface CartProviderProps {
 }
 
 export const CartProvider = ({ children }: CartProviderProps) => {
+  const { user } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const addItem = (item: MenuItem, quantity: number = 1) => {
-    setItems(currentItems => {
-      const existingItem = currentItems.find(i => i.id === item.id);
-      
-      if (existingItem) {
-        return currentItems.map(i =>
-          i.id === item.id
-            ? { ...i, quantity: i.quantity + quantity }
-            : i
-        );
-      }
-      
-      return [...currentItems, { ...item, quantity }];
-    });
+  // Fetch cart items from database
+  const fetchCartItems = async () => {
+    if (!user) return;
     
-    console.log(`Added ${quantity}x ${item.name} to cart`);
-  };
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('cart_items')
+        .select(`
+          id,
+          quantity,
+          menu_items (
+            id,
+            name,
+            price,
+            description,
+            image_url,
+            category,
+            available_quantity,
+            canteen_id
+          )
+        `)
+        .eq('user_id', user.id);
 
-  const removeItem = (id: string) => {
-    setItems(currentItems => {
-      const item = currentItems.find(i => i.id === id);
-      if (item) {
-        console.log(`Removed ${item.name} from cart`);
+      if (error) {
+        console.error('Error fetching cart items:', error);
+        return;
       }
-      return currentItems.filter(item => item.id !== id);
-    });
+
+      // Transform the data to match our CartItem interface
+      const cartItems: CartItem[] = data?.map(item => ({
+        id: item.id, // This is the cart item ID
+        quantity: item.quantity,
+        ...item.menu_items
+      })) || [];
+
+      setItems(cartItems);
+    } catch (error) {
+      console.error('Error fetching cart items:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateQuantity = (id: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeItem(id);
+  // Load cart items when user changes
+  useEffect(() => {
+    if (user) {
+      fetchCartItems();
+    } else {
+      setItems([]);
+    }
+  }, [user]);
+
+  // Set up realtime subscription for cart changes
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`cart-changes-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'cart_items',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Cart change detected:', payload);
+          fetchCartItems();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  const addItem = async (item: MenuItem, quantity: number = 1) => {
+    if (!user) {
+      toast.error('Please login to add items to cart');
       return;
     }
-    
-    setItems(currentItems =>
-      currentItems.map(item =>
-        item.id === id ? { ...item, quantity } : item
-      )
-    );
+
+    try {
+      // Check if item already exists in cart
+      const existingItem = items.find(i => i.id === item.id);
+      
+      if (existingItem) {
+        // Update quantity
+        await updateQuantity(existingItem.id, existingItem.quantity + quantity);
+      } else {
+        // Add new item
+        const { error } = await supabase
+          .from('cart_items')
+          .insert({
+            user_id: user.id,
+            menu_item_id: item.id,
+            quantity: quantity
+          });
+
+        if (error) {
+          console.error('Error adding item to cart:', error);
+          toast.error('Failed to add item to cart');
+          return;
+        }
+
+        toast.success(`${quantity}x ${item.name} added to cart`);
+      }
+    } catch (error) {
+      console.error('Error adding item to cart:', error);
+      toast.error('Failed to add item to cart');
+    }
   };
 
-  const clearCart = () => {
-    setItems([]);
-    console.log('Cart cleared');
+  const removeItem = async (id: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('cart_items')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error removing item from cart:', error);
+        toast.error('Failed to remove item from cart');
+        return;
+      }
+
+      toast.success('Item removed from cart');
+    } catch (error) {
+      console.error('Error removing item from cart:', error);
+      toast.error('Failed to remove item from cart');
+    }
+  };
+
+  const updateQuantity = async (id: string, quantity: number) => {
+    if (!user) return;
+
+    if (quantity <= 0) {
+      await removeItem(id);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('cart_items')
+        .update({ quantity })
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error updating cart item quantity:', error);
+        toast.error('Failed to update quantity');
+        return;
+      }
+    } catch (error) {
+      console.error('Error updating cart item quantity:', error);
+      toast.error('Failed to update quantity');
+    }
+  };
+
+  const clearCart = async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('cart_items')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error clearing cart:', error);
+        toast.error('Failed to clear cart');
+        return;
+      }
+
+      toast.success('Cart cleared');
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+      toast.error('Failed to clear cart');
+    }
   };
 
   const totalAmount = items.reduce((total, item) => total + (item.price * item.quantity), 0);
@@ -99,7 +246,8 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     updateQuantity,
     clearCart,
     totalAmount,
-    totalItems
+    totalItems,
+    loading
   };
 
   return (

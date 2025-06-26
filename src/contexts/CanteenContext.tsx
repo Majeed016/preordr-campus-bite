@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -99,18 +98,6 @@ export const CanteenProvider = ({ children }: CanteenProviderProps) => {
         }
       )
       .subscribe();
-    
-    // Check for previously selected canteen
-    const storedCanteen = localStorage.getItem('selected_canteen');
-    if (storedCanteen) {
-      try {
-        const parsed = JSON.parse(storedCanteen);
-        setSelectedCanteen(parsed);
-      } catch (error) {
-        console.error('Error parsing stored canteen:', error);
-        localStorage.removeItem('selected_canteen');
-      }
-    }
 
     return () => {
       supabase.removeChannel(channel);
@@ -119,7 +106,6 @@ export const CanteenProvider = ({ children }: CanteenProviderProps) => {
 
   const selectCanteen = (canteen: Canteen) => {
     setSelectedCanteen(canteen);
-    localStorage.setItem('selected_canteen', JSON.stringify(canteen));
     console.log('Canteen selected:', canteen.name);
   };
 
