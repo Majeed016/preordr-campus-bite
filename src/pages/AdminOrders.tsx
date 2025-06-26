@@ -56,7 +56,7 @@ const AdminOrders = () => {
         .from('orders')
         .select(`
           *,
-          profiles:user_id (name),
+          profiles!user_id (name),
           order_items (
             *,
             menu_items (name)
