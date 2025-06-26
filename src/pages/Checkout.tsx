@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
 import { useCanteen } from '@/contexts/CanteenContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +13,12 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { CreditCard, Clock, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 const Checkout = () => {
   const [loading, setLoading] = useState(false);
@@ -24,51 +31,173 @@ const Checkout = () => {
   const platformFee = 3;
   const finalTotal = totalAmount + platformFee;
 
-  const handlePayment = async () => {
-    if (!pickupTime) {
-      toast.error('Please select a pickup time');
-      return;
+  const createOrder = async () => {
+    if (!selectedCanteen || !user) {
+      toast.error('Please select a canteen and login');
+      return null;
     }
 
-    setLoading(true);
-    
     try {
-      // Simulate payment processing
-      console.log('Processing payment...', {
-        user_id: user?.id,
-        canteen_id: selectedCanteen?.id,
-        items,
+      console.log('Creating order in database...', {
+        user_id: user.id,
+        canteen_id: selectedCanteen.id,
         total_amount: finalTotal,
         platform_fee: platformFee,
         canteen_amount: totalAmount,
         pickup_time: pickupTime
       });
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Create the order in database
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user.id,
+          canteen_id: selectedCanteen.id,
+          total_amount: finalTotal,
+          platform_fee: platformFee,
+          canteen_amount: totalAmount,
+          pickup_time: pickupTime,
+          status: 'pending'
+        })
+        .select()
+        .single();
 
-      // Mock payment success
-      const paymentId = `pay_${Date.now()}`;
-      
-      // Clear cart
-      clearCart();
-      
-      toast.success('Payment successful!');
-      
-      // Navigate to confirmation with order details
-      navigate('/order-confirmation', {
-        state: {
-          orderId: `order_${Date.now()}`,
-          paymentId,
-          total: finalTotal,
-          pickupTime
+      if (orderError) {
+        console.error('Error creating order:', orderError);
+        throw new Error('Failed to create order');
+      }
+
+      console.log('Order created successfully:', orderData);
+
+      // Create order items
+      const orderItems = items.map(item => ({
+        order_id: orderData.id,
+        menu_item_id: item.id,
+        quantity: item.quantity,
+        price: item.price,
+        total_price: item.price * item.quantity
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) {
+        console.error('Error creating order items:', itemsError);
+        throw new Error('Failed to create order items');
+      }
+
+      console.log('Order items created successfully');
+      return orderData;
+
+    } catch (error) {
+      console.error('Error creating order:', error);
+      throw error;
+    }
+  };
+
+  const handleRazorpayPayment = async () => {
+    if (!pickupTime) {
+      toast.error('Please select a pickup time');
+      return;
+    }
+
+    if (!selectedCanteen || !user) {
+      toast.error('Please select a canteen and login');
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      // First create the order in our database
+      const orderData = await createOrder();
+      if (!orderData) {
+        throw new Error('Failed to create order');
+      }
+
+      // Load Razorpay script if not already loaded
+      if (!window.Razorpay) {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+        
+        await new Promise((resolve) => {
+          script.onload = resolve;
+        });
+      }
+
+      // Razorpay options
+      const options = {
+        key: 'rzp_test_9YdEm8UrDrMsEe', // Replace with your Razorpay key
+        amount: finalTotal * 100, // Amount in paise
+        currency: 'INR',
+        name: selectedCanteen.name,
+        description: `Order from ${selectedCanteen.name}`,
+        order_id: orderData.id, // Use our order ID
+        handler: async function (response: any) {
+          console.log('Payment success:', response);
+          
+          try {
+            // Update order with payment details
+            const { error: updateError } = await supabase
+              .from('orders')
+              .update({
+                payment_id: response.razorpay_payment_id,
+                status: 'paid'
+              })
+              .eq('id', orderData.id);
+
+            if (updateError) {
+              console.error('Error updating order:', updateError);
+              toast.error('Payment successful but failed to update order');
+              return;
+            }
+
+            // Clear cart and redirect
+            clearCart();
+            toast.success('Payment successful!');
+            
+            navigate('/order-confirmation', {
+              state: {
+                orderId: orderData.id,
+                paymentId: response.razorpay_payment_id,
+                total: finalTotal,
+                pickupTime
+              }
+            });
+
+          } catch (error) {
+            console.error('Error handling payment success:', error);
+            toast.error('Payment successful but failed to process order');
+          }
+        },
+        prefill: {
+          name: user.name,
+          email: user.email,
+        },
+        notes: {
+          order_id: orderData.id,
+          canteen_id: selectedCanteen.id,
+        },
+        theme: {
+          color: '#ea580c'
+        },
+        modal: {
+          ondismiss: function() {
+            console.log('Payment cancelled');
+            setLoading(false);
+          }
         }
-      });
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
 
     } catch (error) {
       console.error('Payment failed:', error);
       toast.error('Payment failed. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
@@ -197,14 +326,6 @@ const Checkout = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-blue-900 mb-2">Payment Integration</h3>
-                  <p className="text-sm text-blue-700">
-                    Razorpay integration will be implemented when connected to Supabase. 
-                    This is a demo payment flow.
-                  </p>
-                </div>
-
                 <div className="space-y-4">
                   <div className="p-4 border rounded-lg">
                     <div className="flex items-center justify-between mb-2">
@@ -218,11 +339,11 @@ const Checkout = () => {
                 </div>
 
                 <Button 
-                  onClick={handlePayment}
+                  onClick={handleRazorpayPayment}
                   disabled={loading || !pickupTime}
                   className="w-full bg-orange-600 hover:bg-orange-700 text-lg py-6"
                 >
-                  {loading ? 'Processing...' : `Pay ₹${finalTotal}`}
+                  {loading ? 'Processing...' : `Pay ₹${finalTotal} with Razorpay`}
                 </Button>
 
                 <p className="text-xs text-gray-500 text-center">
