@@ -62,10 +62,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           };
           setUser(basicProfile);
           
-          // Try to create/update profile in database after a delay
+          // Try to fetch from database after a delay
           setTimeout(async () => {
             try {
-              // First check if profile exists
               const { data: existingProfile } = await supabase
                 .from('profiles')
                 .select('*')
@@ -74,26 +73,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               
               if (existingProfile) {
                 setUser(existingProfile);
-              } else {
-                // Try to create profile
-                const { data: newProfile, error } = await supabase
-                  .from('profiles')
-                  .insert({
-                    id: session.user.id,
-                    email: session.user.email || '',
-                    name: session.user.user_metadata?.name || session.user.email || 'User',
-                    role: (session.user.user_metadata?.role as 'user' | 'admin') || 'user'
-                  })
-                  .select()
-                  .single();
-                
-                if (newProfile && !error) {
-                  setUser(newProfile);
-                }
               }
             } catch (err) {
-              console.log('Profile operation failed, continuing with basic profile:', err);
-              // Keep the basic profile even if database operations fail
+              console.log('Profile fetch failed, using session data:', err);
             }
           }, 1000);
         } else {
@@ -117,67 +99,70 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const register = async (email: string, password: string, name: string, role: 'user' | 'admin' = 'user', canteenData?: CanteenData) => {
     setLoading(true);
     try {
-      console.log('Attempting registration for:', email, 'with role:', role);
+      console.log('Starting registration for:', email, 'with role:', role);
       
-      // Create the auth user with metadata
-      const { data, error } = await supabase.auth.signUp({
+      // Step 1: Create the auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             name,
             role
-          },
-          // Skip email confirmation for development
-          emailRedirectTo: undefined
+          }
         }
       });
       
-      if (error) {
-        console.error('Registration error:', error.message);
-        throw new Error(error.message);
+      if (authError) {
+        console.error('Auth registration error:', authError.message);
+        throw new Error(authError.message);
       }
       
-      if (!data.user) {
+      if (!authData.user) {
         throw new Error('User creation failed');
       }
       
-      console.log('Registration successful for:', data.user.email);
+      console.log('Auth user created successfully:', authData.user.email);
       
-      // Create profile immediately after user creation
+      // Step 2: Wait for auth to settle
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Step 3: Create profile
       try {
-        console.log('Creating profile for user:', data.user.id);
+        console.log('Creating profile for user:', authData.user.id);
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
-            id: data.user.id,
+            id: authData.user.id,
             email: email,
             name: name,
             role: role
           });
         
         if (profileError) {
-          console.error('Error creating profile:', profileError);
+          console.error('Profile creation error:', profileError);
+          // Don't throw error here, continue with canteen creation if needed
         } else {
           console.log('Profile created successfully');
         }
       } catch (err) {
         console.error('Profile creation failed:', err);
+        // Continue anyway
       }
       
-      // For admin registration with canteen data
-      if (role === 'admin' && canteenData && data.user) {
+      // Step 4: Create canteen for admin users
+      if (role === 'admin' && canteenData) {
         try {
-          // Wait a bit for the profile to be created
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Wait a bit more for everything to settle
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
-          console.log('Creating canteen for admin:', data.user.id);
+          console.log('Creating canteen for admin:', authData.user.id);
           const { data: canteenResult, error: canteenError } = await supabase
             .from('canteens')
             .insert({
               name: canteenData.canteenName,
               location: canteenData.canteenLocation || 'Not specified',
-              admin_user_id: data.user.id,
+              admin_user_id: authData.user.id,
               is_active: true,
               accepting_orders: true,
               description: `Welcome to ${canteenData.canteenName}! We serve delicious food with love.`
@@ -185,7 +170,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             .select();
           
           if (canteenError) {
-            console.error('Error creating canteen:', canteenError);
+            console.error('Canteen creation error:', canteenError);
             throw new Error(`Failed to create canteen: ${canteenError.message}`);
           } else {
             console.log('Canteen created successfully:', canteenResult);
@@ -195,6 +180,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           throw new Error('Failed to create canteen for admin user');
         }
       }
+      
+      console.log('Registration completed successfully');
       
     } catch (error: any) {
       console.error('Registration failed:', error);

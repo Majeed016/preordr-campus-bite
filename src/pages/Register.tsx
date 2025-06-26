@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Upload, User, Building2 } from 'lucide-react';
+import { Eye, EyeOff, Upload, User, Building2, CheckCircle } from 'lucide-react';
 
 const Register = () => {
   const [activeTab, setActiveTab] = useState('user');
@@ -34,11 +34,12 @@ const Register = () => {
   
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const { register, user } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already logged in
-  if (user) {
+  if (user && !registrationSuccess) {
     if (user.role === 'admin') {
       navigate('/admin');
     } else {
@@ -68,6 +69,8 @@ const Register = () => {
     setLoading(true);
     try {
       await register(userForm.email, userForm.password, userForm.name, 'user');
+      
+      setRegistrationSuccess(true);
       toast.success('Account created successfully! You can now sign in.');
       
       // Clear form
@@ -78,8 +81,11 @@ const Register = () => {
         confirmPassword: ''
       });
       
-      // Navigate to login
-      navigate('/login');
+      // Navigate to login after a short delay
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+      
     } catch (error: any) {
       console.error('Registration error:', error);
       toast.error(error.message || 'Registration failed. Please try again.');
@@ -113,7 +119,9 @@ const Register = () => {
         canteenLocation: adminForm.canteenLocation,
         canteenPhoto: adminForm.canteenPhoto
       });
-      toast.success('Admin account created successfully! You can now sign in.');
+      
+      setRegistrationSuccess(true);
+      toast.success('Admin account and canteen created successfully! You can now sign in.');
       
       // Clear form
       setAdminForm({
@@ -126,8 +134,11 @@ const Register = () => {
         canteenPhoto: null
       });
       
-      // Navigate to login
-      navigate('/login');
+      // Navigate to login after a short delay
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+      
     } catch (error: any) {
       console.error('Registration error:', error);
       toast.error(error.message || 'Registration failed. Please try again.');
@@ -142,6 +153,34 @@ const Register = () => {
       setAdminForm(prev => ({ ...prev, canteenPhoto: file }));
     }
   };
+
+  if (registrationSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 px-4 py-8">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-green-600">
+              Registration Successful!
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">
+              Your account has been created successfully. Redirecting to login...
+            </p>
+            <Button 
+              onClick={() => navigate('/login')}
+              className="w-full bg-orange-600 hover:bg-orange-700"
+            >
+              Go to Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 px-4 py-8">
@@ -176,6 +215,7 @@ const Register = () => {
                     onChange={(e) => setUserForm(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="Enter your full name"
                     required
+                    disabled={loading}
                   />
                 </div>
 
@@ -188,6 +228,7 @@ const Register = () => {
                     onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="Enter your email"
                     required
+                    disabled={loading}
                   />
                 </div>
 
@@ -201,6 +242,7 @@ const Register = () => {
                       onChange={(e) => setUserForm(prev => ({ ...prev, password: e.target.value }))}
                       placeholder="Create a password"
                       required
+                      disabled={loading}
                     />
                     <Button
                       type="button"
@@ -208,6 +250,7 @@ const Register = () => {
                       size="sm"
                       className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
+                      disabled={loading}
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4" />
@@ -227,6 +270,7 @@ const Register = () => {
                     onChange={(e) => setUserForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
                     placeholder="Confirm your password"
                     required
+                    disabled={loading}
                   />
                 </div>
 
@@ -251,6 +295,7 @@ const Register = () => {
                     onChange={(e) => setAdminForm(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="Enter your full name"
                     required
+                    disabled={loading}
                   />
                 </div>
 
@@ -263,6 +308,7 @@ const Register = () => {
                     onChange={(e) => setAdminForm(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="Enter your email"
                     required
+                    disabled={loading}
                   />
                 </div>
 
@@ -277,6 +323,7 @@ const Register = () => {
                         onChange={(e) => setAdminForm(prev => ({ ...prev, password: e.target.value }))}
                         placeholder="Create password"
                         required
+                        disabled={loading}
                       />
                     </div>
                   </div>
@@ -290,6 +337,7 @@ const Register = () => {
                       onChange={(e) => setAdminForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
                       placeholder="Confirm password"
                       required
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -303,6 +351,7 @@ const Register = () => {
                     onChange={(e) => setAdminForm(prev => ({ ...prev, canteenName: e.target.value }))}
                     placeholder="Enter canteen name"
                     required
+                    disabled={loading}
                   />
                 </div>
 
@@ -314,6 +363,7 @@ const Register = () => {
                     value={adminForm.canteenLocation}
                     onChange={(e) => setAdminForm(prev => ({ ...prev, canteenLocation: e.target.value }))}
                     placeholder="Enter canteen location"
+                    disabled={loading}
                   />
                 </div>
 
@@ -326,12 +376,14 @@ const Register = () => {
                       accept="image/*"
                       onChange={handleFileChange}
                       className="hidden"
+                      disabled={loading}
                     />
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => document.getElementById('canteen-photo')?.click()}
                       className="w-full"
+                      disabled={loading}
                     >
                       <Upload className="h-4 w-4 mr-2" />
                       {adminForm.canteenPhoto ? adminForm.canteenPhoto.name : 'Upload Photo'}
@@ -344,7 +396,7 @@ const Register = () => {
                   className="w-full bg-orange-600 hover:bg-orange-700"
                   disabled={loading}
                 >
-                  {loading ? 'Creating Account...' : 'Create Admin Account'}
+                  {loading ? 'Creating Account & Canteen...' : 'Create Admin Account'}
                 </Button>
               </form>
             </TabsContent>
