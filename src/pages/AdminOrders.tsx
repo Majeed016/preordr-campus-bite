@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAdminCanteen } from '@/contexts/AdminCanteenContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,7 +32,7 @@ interface Order {
   created_at: string;
   payment_id: string;
   profiles?: {
-    name: string;
+    name?: string;
   } | null;
   order_items?: OrderItem[];
 }
