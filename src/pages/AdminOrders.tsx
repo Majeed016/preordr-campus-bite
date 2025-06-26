@@ -56,13 +56,14 @@ const AdminOrders = () => {
         .from('orders')
         .select(`
           *,
-          profiles!user_id (name),
+          profiles!inner(name),
           order_items (
             *,
             menu_items (name)
           )
         `)
         .eq('canteen_id', canteen.id)
+        .eq('profiles.id', supabase.raw('orders.user_id'))
         .order('created_at', { ascending: false });
 
       if (error) {
