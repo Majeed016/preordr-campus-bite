@@ -1,4 +1,47 @@
-# Welcome to your Lovable project
+# 🍽️ CampusCanteen – Canteen Pre-Ordering App
+
+![CampusEats Banner](./public/og-image.jpg)
+
+CampusEats is a smart food ordering platform designed for college students and canteen owners. It lets students pre-order meals and skip queues while allowing canteen owners to manage menus, orders, and availability—all in real time.
+
+---
+
+## 📱 What It Does
+
+### 👨‍🎓 For Students:
+- ✅ Sign up and log in securely
+- 🏪 View available canteens
+- 📋 See detailed menus
+- 🛒 Place orders and track status
+- 💳 Pay online via Razorpay
+- 🚫 Get notified if a canteen is not accepting orders
+
+### 👨‍🍳 For Canteen Owners:
+- ✍️ Register and set up their canteen
+- 📦 Add and manage menu items
+- ✅ Toggle order availability (open/close canteen)
+- 📊 View daily stats: orders, revenue, platform fee
+- 🧾 Track and manage pending orders
+
+---
+
+## 🧱 Tech Stack
+
+- **Frontend**: Flutter (App) / React + Tailwind CSS (Web)
+- **Backend**: Supabase (Database, Auth, API)
+- **State Management**: Zustand / React Context
+- **Payment Gateway**: Razorpay
+
+---
+
+## 🛠️ Setup Instructions
+
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/your-username/campus-canteen.git
+cd campus-canteen
+```
 
 ## Project info
 
@@ -49,16 +92,6 @@ npm run dev
 - Select the "Codespaces" tab.
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
 
 ## How can I deploy this project?
 
