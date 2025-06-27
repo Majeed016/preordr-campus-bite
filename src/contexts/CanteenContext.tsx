@@ -80,27 +80,26 @@ export const CanteenProvider = ({ children }: CanteenProviderProps) => {
   };
 
   useEffect(() => {
-    refreshCanteens();
-    
-    // Set up real-time subscription for canteens
-    const channel = supabase
-      .channel('canteens-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'canteens'
-        },
-        (payload) => {
-          console.log('Canteen change detected:', payload);
-          refreshCanteens();
-        }
-      )
-      .subscribe();
+    let isSubscribed = true;
+
+    const loadCanteens = async () => {
+      if (isSubscribed) {
+        await refreshCanteens();
+      }
+    };
+
+    loadCanteens();
+
+    // Poll for canteen updates every 10 seconds
+    const interval = setInterval(() => {
+      if (isSubscribed) {
+        refreshCanteens();
+      }
+    }, 10000); // Poll every 10 seconds
 
     return () => {
-      supabase.removeChannel(channel);
+      isSubscribed = false;
+      clearInterval(interval);
     };
   }, []);
 

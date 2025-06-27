@@ -132,7 +132,7 @@ const Checkout = () => {
         key: 'rzp_test_51O8X8X8X8X8X8', // Replace with your actual key
         amount: finalTotal * 100, // Amount in paise
         currency: 'INR',
-        name: 'Campus Bite',
+        name: 'CampusEats',
         description: `Order from ${selectedCanteen.name}`,
         order_id: orderData.id,
         handler: async function (response: any) {

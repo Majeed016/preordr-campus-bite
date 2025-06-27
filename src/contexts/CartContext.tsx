@@ -17,6 +17,7 @@ interface MenuItem {
 interface CartItem extends MenuItem {
   quantity: number;
   id: string; // This will be the cart item ID from database
+  menu_item_id: string; // Reference to the menu item
 }
 
 interface CartContextType {
@@ -60,6 +61,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
         .select(`
           id,
           quantity,
+          menu_item_id,
           menu_items (
             id,
             name,
@@ -81,6 +83,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
       // Transform the data to match our CartItem interface
       const cartItems: CartItem[] = data?.map(item => ({
         id: item.id, // This is the cart item ID
+        menu_item_id: item.menu_item_id,
         quantity: item.quantity,
         ...item.menu_items
       })) || [];
@@ -102,30 +105,15 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     }
   }, [user]);
 
-  // Set up realtime subscription for cart changes
+  // Poll for cart updates every 5 seconds
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
-      .channel(`cart-changes-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'cart_items',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('Cart change detected:', payload);
-          fetchCartItems();
-        }
-      )
-      .subscribe();
+    const interval = setInterval(() => {
+      fetchCartItems();
+    }, 5000); // Poll every 5 seconds
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => clearInterval(interval);
   }, [user]);
 
   const addItem = async (item: MenuItem, quantity: number = 1) => {
@@ -135,11 +123,11 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     }
 
     try {
-      // Check if item already exists in cart
-      const existingItem = items.find(i => i.id === item.id);
+      // Check if item already exists in cart by menu_item_id
+      const existingItem = items.find(i => i.menu_item_id === item.id);
       
       if (existingItem) {
-        // Update quantity
+        // Update quantity of existing cart item
         await updateQuantity(existingItem.id, existingItem.quantity + quantity);
       } else {
         // Add new item
@@ -152,6 +140,21 @@ export const CartProvider = ({ children }: CartProviderProps) => {
           });
 
         if (error) {
+          // If duplicate key error, fetch the cart item and update quantity
+          if (error.code === '23505') {
+            // Fetch the cart item id
+            const { data, error: fetchError } = await supabase
+              .from('cart_items')
+              .select('id, quantity')
+              .eq('user_id', user.id)
+              .eq('menu_item_id', item.id)
+              .single();
+            if (!fetchError && data) {
+              await updateQuantity(data.id, data.quantity + quantity);
+              toast.success(`${quantity}x ${item.name} added to cart`);
+              return;
+            }
+          }
           console.error('Error adding item to cart:', error);
           toast.error('Failed to add item to cart');
           return;

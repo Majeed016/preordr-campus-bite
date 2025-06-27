@@ -227,47 +227,26 @@ export const AdminCanteenProvider = ({ children }: AdminCanteenProviderProps) =>
 
   useEffect(() => {
     if (canteen) {
-      refreshStats();
-      
-      // Set up real-time subscription for orders
-      const ordersChannel = supabase
-        .channel('admin-orders-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'orders',
-            filter: `canteen_id=eq.${canteen.id}`
-          },
-          (payload) => {
-            console.log('Order change detected:', payload);
-            refreshStats();
-          }
-        )
-        .subscribe();
+      let isSubscribed = true;
 
-      // Set up real-time subscription for canteen changes
-      const canteenChannel = supabase
-        .channel('admin-canteen-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'canteens',
-            filter: `id=eq.${canteen.id}`
-          },
-          (payload) => {
-            console.log('Canteen change detected:', payload);
-            refreshCanteen();
-          }
-        )
-        .subscribe();
+      const loadStats = async () => {
+        if (isSubscribed) {
+          await refreshStats();
+        }
+      };
+
+      loadStats();
+
+      // Poll for admin updates every 15 seconds
+      const interval = setInterval(() => {
+        if (isSubscribed) {
+          refreshStats();
+        }
+      }, 15000); // Poll every 15 seconds
 
       return () => {
-        supabase.removeChannel(ordersChannel);
-        supabase.removeChannel(canteenChannel);
+        isSubscribed = false;
+        clearInterval(interval);
       };
     }
   }, [canteen?.id]);

@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,7 +11,7 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24">
           <div className="text-center">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 sm:mb-6">
-              <span className="text-orange-600">Cafe</span>Preorder
+              <span className="text-orange-600">Campus</span>Eats
             </h1>
             <p className="text-lg sm:text-xl text-gray-600 mb-6 sm:mb-8 max-w-2xl mx-auto px-4">
               Skip the queue, order ahead. Perfect for students and employees who want 
@@ -39,7 +38,7 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
-              Why Choose CafePreorder?
+              Why Choose CampusEats?
             </h2>
             <p className="text-lg sm:text-xl text-gray-600 px-4">
               Designed for busy campus life and workplace convenience
@@ -105,7 +104,7 @@ const Index = () => {
             Ready to Skip the Queue?
           </h2>
           <p className="text-lg sm:text-xl text-orange-100 mb-6 sm:mb-8 px-4">
-            Join thousands of students and employees who already use CafePreorder
+            Join thousands of students and employees who already use CampusEats
           </p>
           <Link to="/register">
             <Button size="lg" variant="secondary" className="bg-white text-orange-600 hover:bg-gray-100">

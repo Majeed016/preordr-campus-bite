@@ -1,10 +1,9 @@
-
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useCanteen } from '@/contexts/CanteenContext';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, User, LogOut, MapPin, Menu, X } from 'lucide-react';
+import { ShoppingCart, User, LogOut, MapPin, Menu, X, Utensils } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
 
@@ -38,8 +37,11 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo and Canteen Info */}
           <div className="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
-            <Link to={isAdmin ? "/admin" : "/menu"} className="text-xl sm:text-2xl font-bold text-orange-600 flex-shrink-0">
-              CafePreorder
+            <Link to="/" className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center">
+                <Utensils className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-xl font-bold text-gray-900">CampusEats</span>
             </Link>
             
             {selectedCanteen && (
