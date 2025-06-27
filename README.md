@@ -1,5 +1,7 @@
 # 🍽️ CampusCanteen – Canteen Pre-Ordering App
 
+![CampusEats Screenshot](./Screenshot%202025-06-27%20225320.png)
+
 ![CampusEats Banner](./public/og-image.jpg)
 
 CampusEats is a smart food ordering platform designed for college students and canteen owners. It lets students pre-order meals and skip queues while allowing canteen owners to manage menus, orders, and availability—all in real time.
