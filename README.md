@@ -1,4 +1,4 @@
-# 🍽️ CampusCanteen – Canteen Pre-Ordering App
+# 🍽️ CampusEats – Canteen Pre-Ordering App
 
 ![CampusEats Screenshot](./Screenshot%202025-06-27%20225320.png)
 
